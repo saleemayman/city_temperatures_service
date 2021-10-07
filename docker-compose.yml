@@ -1,0 +1,39 @@
+version: '3'
+  
+services:
+  python_rest_api:
+    build:
+        context: .
+        dockerfile: Dockerfile
+    deploy:
+      resources:
+        limits:
+          cpus: '1.500'
+          memory: 1G
+    ports:
+      - "8082:8082"
+    depends_on:
+      - pg_image
+    # tail /dev/null to prevent container from exiting on it's own.
+    command: bash -c "echo 'Inside container.' &&  echo 'End. No more commands.' && tail -f /dev/null"
+
+  pg_image:
+    image: postgres:11.13-alpine
+    restart: always
+    volumes:
+      - pg_db_data:/var/lib/postgresql/data
+      # initialise DB schema and load given data into a table.
+      - ./data/GlobalLandTemperaturesByCity.csv:/tmp/GlobalLandTemperaturesByCity.csv
+      - ./sql/10_create_schema.sql:/docker-entrypoint-initdb.d/10_create_schema.sql
+      - ./sql/20_load_data.sql:/docker-entrypoint-initdb.d/20_load_data.sql
+    ports:
+      - "5432:5432"
+    environment:
+      - DATABASE_HOST=127.0.0.1
+      - POSTGRES_USER=test_usr
+      - POSTGRES_PASSWORD=test_pswd
+      - POSTGRES_DB=global_temperatures
+
+volumes:
+    pg_db_data:
+
