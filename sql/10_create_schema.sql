@@ -1,7 +1,3 @@
-GRANT pg_execute_server_program to test_usr;
--- GRANT pg_read_server_files to test_usr;
--- GRANT pg_write_server_files to test_usr;
-
 -- create table in DB
 DROP TABLE IF EXISTS public.global_land_temperatures_by_city;
 
@@ -15,3 +11,4 @@ CREATE TABLE public.global_land_temperatures_by_city
     latitude                    VARCHAR(8),
     longitude                   VARCHAR(8)
 );
+
