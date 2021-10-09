@@ -17,7 +17,7 @@ COPY bin/ bin/
 COPY app.py .
 COPY config.py .
 COPY models.py .
-COPY setup.py .
+#COPY setup.py .
 
 RUN chmod +x bin/start_app.sh
 

@@ -1,9 +1,9 @@
 version: '3'
 
 services:
-  python_rest_api:
+  python_web_app:
     build:
-        context: .
+        context: ./web_app
         dockerfile: Dockerfile
     deploy:
       resources:
