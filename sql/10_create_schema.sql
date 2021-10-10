@@ -9,6 +9,7 @@ CREATE TABLE public.global_land_temperatures_by_city
     city                        VARCHAR(64),
     country                     VARCHAR(64), 
     latitude                    VARCHAR(8),
-    longitude                   VARCHAR(8)
+    longitude                   VARCHAR(8),
+    PRIMARY KEY (dt, city, latitude, longitude)
 );
 

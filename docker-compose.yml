@@ -1,5 +1,9 @@
 version: '3'
 
+networks:
+    test_network:
+        external: true
+
 services:
   python_web_app:
     build:
@@ -10,18 +14,23 @@ services:
         limits:
           cpus: '1.500'
           memory: 1G
-    #network_mode: host
+    networks:
+      - test_network
     ports:
       - "5000:5000"
     depends_on:
       - pg_image
+    env_file:
+      - "bin/env.sh"
     # tail /dev/null to prevent container from exiting on it's own.
-    # command: bash -c "echo 'Inside container.' && bin/start_app.sh && echo 'End. No more commands.' && tail -f /dev/null"
+    #command: bash -c "echo 'Inside container.' && bin/start_app.sh && echo 'End. No more commands.' && tail -f /dev/null"
     command: bash -c "bin/start_app.sh"
     #command: "source bin/env.sh && flask run --host=0.0.0.0 --port=5000"
 
   pg_image:
     image: postgres:11.13-alpine
+    networks:
+      - test_network
     restart: always
     volumes:
       - pg_db_data:/var/lib/postgresql/data
@@ -29,13 +38,12 @@ services:
       - ./data/GlobalLandTemperaturesByCity.csv:/tmp/GlobalLandTemperaturesByCity.csv
       - ./sql/10_create_schema.sql:/docker-entrypoint-initdb.d/10_create_schema.sql
       - ./sql/20_load_data.sql:/docker-entrypoint-initdb.d/20_load_data.sql
+    expose:
+      - "5432"
     ports:
       - "5432:5432"
-    environment:
-      - DATABASE_HOST=127.0.0.1
-      - POSTGRES_USER=test_usr
-      - POSTGRES_PASSWORD=test_pswd
-      - POSTGRES_DB=global_temperatures
+    env_file:
+      - "bin/env.sh"
 
 volumes:
     pg_db_data:
