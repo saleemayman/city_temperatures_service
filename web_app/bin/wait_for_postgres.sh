@@ -9,14 +9,11 @@ shift
 cmd="$@"
 
 # wait for postgres DB to be started and setup.
-echo "Postgres is starting, will take a  4 to 5 minutes . . ."
-sleep 240
+echo "Postgres is starting, will take 4 to 5 minutes . . ."
 until PGPASSWORD=$POSTGRES_PASSWORD psql -d $POSTGRES_DB -h $DATABASE_HOST -U $POSTGRES_USER -c '\q'; do
-  >&2
-  echo ""
-  echo "Postgres not yet accepting connections, retrying . . ."
-  sleep 30
+  >&2 echo "Postgres not yet accepting connections, retrying . . ."
+  sleep 240
 done
 
->&2 echo "Postgres is up."
+>&2 echo "Connection to PostgresDB success. Proceeding with launching app . . ."
 exec "$@"
