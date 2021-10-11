@@ -73,9 +73,9 @@ def update_record():
     if request.is_json:
         data = request.get_json()
         dt = data["dt"]
-        new_avg_temp = data["avg_temperature"]
-        new_temp_uncert = data["avg_temperature_uncertainty"]
         city = data["city"]
+        field_to_update = data["field_to_update"]
+        field_new_value = data["field_new_value"]
 
     # validate inputs
     try:
@@ -84,16 +84,16 @@ def update_record():
         bad_request('Invalid date provided. Must be in YYYY-MM-DD format. dt: {}'.format(dt))
 
     # check new value for avg. temp
-    if type(new_avg_temp) is not float and type(new_avg_temp) is not int:
-        bad_request('Invalid input for average temperature. Must be a valid number/decimal.')
+    if type(field_new_value) is not float and type(field_new_value) is not int:
+        bad_request('Invalid input for {f}. Must be a valid number/decimal.'.format(f=field_to_update))
 
     # if no uncertainty value given then send it as None.
-    if new_temp_uncert == '' or not new_temp_uncert:
-        new_temp_uncert = None
+    if field_new_value != "avg_temperature" and field_new_value != "avg_temperature_uncertainty":
+        bad_request('Invalid field to update {f}.'.format(f=field_to_update))
 
     # update the record
     cities = GlobalCityTemperatures()
-    response = cities.update_record(dt, city, new_avg_temp, new_temp_uncert)
+    response = cities.update_record(dt, city, field_to_update, field_new_value)
 
     response = jsonify(response)
     response.status_code = 200

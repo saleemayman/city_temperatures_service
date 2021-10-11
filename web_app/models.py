@@ -91,7 +91,7 @@ class GlobalCityTemperatures(Base):
                             Error message: {e}
                         """.format(d=dt, ci=city, e=err)}
 
-    def update_record(self, dt, city, new_avg_temp, new_temp_uncert=None):
+    def update_record(self, dt, city, new_target_value, update_target):
         """
         Update an existing row using the given `dt` and `city` values. The
         update target is `avg_temperature` and/or `avg_temperature_uncertainty`.
@@ -101,24 +101,27 @@ class GlobalCityTemperatures(Base):
                 - The date for the record to be updated.
             city : string
                 - The city name for which the records will be updated for date=dt.
-            new_avg_temp : float/int
-                - The new value of average temperature. The `avg_temperature` column
-                in the DB will be updated for above `city` and `dt`
-            new_temp_uncert : float/int
-                - The new uncertainty value for the new average temperature - optional.
+            new_target_value: float/int
+                - The new value of average temperature or temperature uncertainty.
+                Acceptable values := {"avg_temperature" or "avg_temperature_uncertainty"}.
+                Only one of the above columns is updated in the DB for above `city` and `dt`
+            update_target : string
+                - The name of the decimal column being updated.
+                Acceptable values := {"avg_temperature" or "avg_temperature_uncertainty"}.
 
         Returns:
             results : dict
                 - If DB query successful then a success message else the error message.
         """
+        # TODO: add check to validate values of update_target.
+
         try:
             stmt = update(self.postgres_table
                             ).where(and_(self.postgres_table.c.dt == dt,
                                         self.postgres_table.c.city == city)
                                     ).values(
                                                 {
-                                                    "avg_temperature": new_avg_temp,
-                                                    "avg_temperature_uncertainty": new_temp_uncert
+                                                    update_target: new_target_value
                                                 } )
             # update entry into table and commit result.
             with Session(engine) as session:
@@ -127,13 +130,13 @@ class GlobalCityTemperatures(Base):
 
             # return success message.
             return {'success':
-                        """Updated avg. Temp. to {t} record for date: {d} and city: {ci}
-                        """.format(t=new_avg_temp, d=dt, ci=city)}
+                        """Updated {u} to {t} record for date: {d} and city: {ci}
+                        """.format(u=update_target, t=new_target_value, d=dt, ci=city)}
         except Exception as err:
             return {'error':
-                        """Could not update record for dt: {d}, city: {c}.
+                        """Could not update {u} for record for dt: {d}, city: {c}.
                             Error message: {e}
-                        """.format(d=dt, c=city, e=err)}
+                        """.format(u=update_target, d=dt, c=city, e=err)}
 
     def get_hottest_top_N_cities_in_range(self, dt_start=datetime.date(2000, 1, 1),
                                                 dt_end=datetime.date(2021, 10, 10),
@@ -180,9 +183,17 @@ class GlobalCityTemperatures(Base):
 
                 # from the ranked entries per city above, get the top N cities
                 # with the highest temperatures.
-                query = session.query(subquery).filter(subquery.c.city_rnk == 1
-                                                        ).order_by(
-                                                                subquery.c.avg_temperature.desc()
+                # Get all original columns and discard rank column.
+                query = session.query(
+                                        subquery.c.dt,
+                                        subquery.c.avg_temperature,
+                                        subquery.c.avg_temperature_uncertainty,
+                                        subquery.c.city,
+                                        subquery.c.country,
+                                        subquery.c.latitude,
+                                        subquery.c.longitude
+                                    ).filter(subquery.c.city_rnk == 1
+                                                    ).order_by( subquery.c.avg_temperature.desc()
                                                                 ).limit(top_n)
                 results = [dict(r) for r in session.execute(query)]
 
