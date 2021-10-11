@@ -1,5 +1,6 @@
 version: '3'
 
+# assign a new common network and attach all services to it.
 networks:
     test_network:
         external: true
@@ -9,11 +10,6 @@ services:
     build:
         context: ./web_app
         dockerfile: Dockerfile
-    deploy:
-      resources:
-        limits:
-          cpus: '1.500'
-          memory: 1G
     networks:
       - test_network
     ports:
@@ -22,16 +18,18 @@ services:
       - pg_image
     env_file:
       - "bin/env.sh"
-    # tail /dev/null to prevent container from exiting on it's own.
-    #command: bash -c "echo 'Inside container.' && bin/start_app.sh && echo 'End. No more commands.' && tail -f /dev/null"
-    command: bash -c "bin/start_app.sh"
-    #command: "source bin/env.sh && flask run --host=0.0.0.0 --port=5000"
+    #command: bash -c "sleep 5 && python3 app.py"
+    command: ["bin/wait_for_postgres.sh", "bash", "python3", "app.py"]
 
   pg_image:
     image: postgres:11.13-alpine
     networks:
       - test_network
     restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '1.500'
     volumes:
       - pg_db_data:/var/lib/postgresql/data
       # initialise DB schema and load given data into a table.
