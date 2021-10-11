@@ -72,6 +72,7 @@ To get the container name, run: `docker ps` and copy the `NAME` which contains `
 1. Find the city with the highest average temperature since 2000.
 
 **Request:** `curl -X GET "http://<host>:5000/topNcities/?dtstart=1999-12-31&dtend=2021-10-11&topn=1"`
+
 **Response:**
 ```
 [
@@ -90,6 +91,7 @@ To get the container name, run: `docker ps` and copy the `NAME` which contains `
 2. Create a new record for the city above with a new high temperature. New temperature is 0.1C higher than the temperature in 1.
 
 **Request:** `curl -X POST  http://192.168.80.3:5000/new -H 'Content-Type: application/json' -d '{"avg_temperature": 39.256, "avg_temperature_uncertainty": 0.37, "city": "Ahvaz", "country": "Iran", "dt": "2021-09-30", "lat": "31.35N", "lon": "49.01E"}'`
+
 **Response:**
 ```
 {
@@ -100,6 +102,7 @@ To get the container name, run: `docker ps` and copy the `NAME` which contains `
 3. Assuming the record in 1. is wrong, correct it. Actual temperature is 2.5C lower.
 
 **Request:** `curl -X PUT  http://192.168.80.3:5000/update -H 'Content-Type: application/json' -d '{"dt" : "2013-07-01","city" : "Ahvaz", "field_to_update" : 36.656, "field_new_value": "avg_temperature"}'`
+
 **Response:**
 ```
 {
