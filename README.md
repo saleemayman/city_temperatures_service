@@ -41,8 +41,8 @@ git clone https://github.com/saleemayman/city_temperatures_service.git
 
 2. `cd` into the cloned repo: `cd city_temperatures_service`.
 
-3. Create a `data` directory in root folder if it does not exist and copy the main CSV file there.
-CSV location: [Kaggle Link for file: GlobalLandTemperaturesByCity.csv](https://www.kaggle.com/berkeleyearth/climate-change-earth-surface-temperature-data?select=GlobalLandTemperaturesByCity.csv)
+3. Create a `data` directory in the above folder if it does not exist and copy the main CSV file there.
+[Kaggle Link for file: GlobalLandTemperaturesByCity.csv](https://www.kaggle.com/berkeleyearth/climate-change-earth-surface-temperature-data?select=GlobalLandTemperaturesByCity.csv)
 
 ```
 mkdir data/
@@ -70,10 +70,9 @@ To get the container name, run: `docker ps` and copy the `NAME` which contains `
 `docker exec -it <container_service_name_with_web_app_run_in_the_name> bash`
 
 1. Find the city with the highest average temperature since 2000.
-#### Request:
-`curl -X GET "http://<host>:5000/topNcities/?dtstart=1999-12-31&dtend=2021-10-11&topn=1"`
+**Request:** `curl -X GET "http://<host>:5000/topNcities/?dtstart=1999-12-31&dtend=2021-10-11&topn=1"`
 
-#### Response:
+**Response:**
 ```
 [
   {
@@ -89,9 +88,8 @@ To get the container name, run: `docker ps` and copy the `NAME` which contains `
 ```
 
 2. Create a new record for the city above with a new high temperature. New temperature is 0.1C higher than the temperature in 1.
-#### Request:
-`curl -X POST  http://192.168.80.3:5000/new -H 'Content-Type: application/json' -d '{"avg_temperature": 39.256, "avg_temperature_uncertainty": 0.37, "city": "Ahvaz", "country": "Iran", "dt": "2021-09-30", "lat": "31.35N", "lon": "49.01E"}'`
-#### Response:
+**Request:** `curl -X POST  http://192.168.80.3:5000/new -H 'Content-Type: application/json' -d '{"avg_temperature": 39.256, "avg_temperature_uncertainty": 0.37, "city": "Ahvaz", "country": "Iran", "dt": "2021-09-30", "lat": "31.35N", "lon": "49.01E"}'`
+**Response:**
 ```
 {
   "success": "New record successfully created for record:\n                        date: 2021-09-30 00:00:00, city: Ahvaz, Temperature: 39.256\n                        "
@@ -99,10 +97,9 @@ To get the container name, run: `docker ps` and copy the `NAME` which contains `
 ```
 
 3. Assuming the record in 1. is wrong, correct it. Actual temperature is 2.5C lower.
-#### Request:
-`curl -X PUT  http://192.168.80.3:5000/update -H 'Content-Type: application/json' -d '{"dt" : "2013-07-01","city" : "Ahvaz", "field_to_update" : 36.656, "field_new_value": "avg_temperature"}'`
+**Request:** `curl -X PUT  http://192.168.80.3:5000/update -H 'Content-Type: application/json' -d '{"dt" : "2013-07-01","city" : "Ahvaz", "field_to_update" : 36.656, "field_new_value": "avg_temperature"}'`
 
-#### Response:
+**Response:**
 ```
 {
   "success": "Updated avg_temperature to 36.656 record for date: 2013-07-01 00:00:00 and city: Ahvaz\n                        "
