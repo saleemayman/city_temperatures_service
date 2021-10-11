@@ -19,25 +19,105 @@ def home_page():
     """ Main index page. """
     return """<html><head></head><body>Global City Temperatures "REST" API.</body></html>"""
 
-@app.route('/topNcities', methods = ['GET'])
+@app.route('/new', methods = ['POST'])
+def create_new_entry():
+    """
+    Creates a new entry in the monthly city avg. temperature table. Must have
+    JSON payload containing the values for columns to be inserted as a new
+    record.
+    """
+    # get JSON payload for new record.
+    if request.is_json:
+        data = request.get_json()
+        dt = data["dt"]
+        avg_temperature = data["avg_temperature"]
+        avg_temperature_uncertainty = data["avg_temperature_uncertainty"]
+        city = data["city"]
+        country = data["country"]
+        lat = data["lat"]
+        lon = data["lon"]
+
+    # validate inputs before inserting into table.
+    if dt and avg_temperature and city and country and lat and lon:
+        # check for valid date
+        try:
+            dt = datetime.datetime.strptime(dt, '%Y-%m-%d')
+        except:
+            bad_request('Invalid date provided. Must be in YYYY-MM-DD format. dt: {}'.format(dt))
+
+        # check for valid temperature value
+        if type(avg_temperature) is not float and type(avg_temperature) is not int:
+            bad_request('Invalid input for average temperature. Must be a valid number/decimal.')
+
+        # if it makes it till here, then insert new record.
+        cities = GlobalCityTemperatures()
+        response = cities.add_new_entry(dt=dt, avg_temperature=avg_temperature,
+                                        avg_temp_uncert=avg_temperature_uncertainty,
+                                        city=city, country=country,
+                                        latitude=lat, longitude=lon)
+        response = jsonify(response)
+        response.status_code = 200
+        return response
+    else:
+        bad_request('Invalid inputs.')
+
+@app.route('/update', methods = ['PUT'])
+def update_record():
+    """
+    Updates the `avg_temperature` and/or `avg_temperature_uncertainity` for a
+    row/entry in the table using the given input `city` and `dt` (date) values.
+
+    Input data must be a JSON payload.
+    """
+    # get JSON payload for new record.
+    if request.is_json:
+        data = request.get_json()
+        dt = data["dt"]
+        new_avg_temp = data["avg_temperature"]
+        new_temp_uncert = data["avg_temperature_uncertainty"]
+        city = data["city"]
+
+    # validate inputs
+    try:
+        dt = datetime.datetime.strptime(dt, '%Y-%m-%d')
+    except:
+        bad_request('Invalid date provided. Must be in YYYY-MM-DD format. dt: {}'.format(dt))
+
+    # check new value for avg. temp
+    if type(new_avg_temp) is not float and type(new_avg_temp) is not int:
+        bad_request('Invalid input for average temperature. Must be a valid number/decimal.')
+
+    # if no uncertainty value given then send it as None.
+    if new_temp_uncert == '' or not new_temp_uncert:
+        new_temp_uncert = None
+
+    # update the record
+    cities = GlobalCityTemperatures()
+    response = cities.update_record(dt, city, new_avg_temp, new_temp_uncert)
+
+    response = jsonify(response)
+    response.status_code = 200
+    return response
+
+@app.route('/topNcities/', methods = ['GET'])
 def get_hottest_cities():
     """
     Returns the top N cities with highest monthly avg. temperature
     in a given time period.
 
-    Example usage: /topNcities?dtstart=2000-01-01&dtend=2013-01-01&topn=5
+    Example usage: /topNcities/?dtstart=2000-01-01&dtend=2013-01-01&topn=5
     """
     # get params from URL and validate them.
     dtstart = request.args.get('dtstart', default='2000-01-01', type=str)
     dtend = request.args.get('dtend', default='2013-01-01', type=str)
-    top_num = request.args.get('topn', default=10, type=int)
+    top_num = request.args.get('topn', default=1, type=int)
 
     # convert string dates to datetime object.
     start_date = datetime.datetime.strptime(dtstart, '%Y-%m-%d')
     end_date = datetime.datetime.strptime(dtend, '%Y-%m-%d')
 
     # validate input params.
-    if top_num > 100 or top_num < 0:
+    if top_num > 100 or top_num == 0:
         top_num = 10
     if start_date > end_date:
         dt_temp = dt_start
@@ -48,30 +128,21 @@ def get_hottest_cities():
     cities = GlobalCityTemperatures()
     results = cities.get_hottest_top_N_cities_in_range(start_date, end_date, top_num)
 
-    col_names = ['dt', 'avg_temperature', 'avg_temperature_uncertainty', 'city', 'country', 'latitude', 'longtiude']
-    return render_template('topNcities.html', headers=col_names, objects=results)
+    # return only JSON object if hottest city is requested
+    if len(results) == 1:
+        return jsonify(results)
+    else:
+        col_names = ['dt', 'avg_temperature', 'avg_temperature_uncertainty',
+                    'city', 'country', 'latitude', 'longtiude']
+        return render_template('topNcities.html', headers=col_names, objects=results)
 
-#@app.route('/add_new', methods = ['POST'])
-#def add_new_entry():
-#    city_temperature = GlobalCityTemperatures(data['dt'], \
-#                                                data['avg_temperature'], \
-#                                                data['avg_temperature_uncertainty'], \
-#                                                data['city'], \
-#                                                data['country'], \
-#                                                data['latitude'], \
-#                                                data['longtiude'])
-#    return make_response(jsonify({'city_temperature': city_temperature}),201)
 
-# helper error functions for common errors
-def not_found(message):
-    response = jsonify({'error': message})
-    response.status_code = 404
-    return response
-
+# helper function for handling errors.
 def bad_request(message):
     response = jsonify({'error': message})
     response.status_code = 400
     return response
 
 if __name__ == '__main__':
+    # run on 0.0.0.0 to enable access to web app from outside the app host container.
     app.run(host='0.0.0.0', port=5000, debug=True)

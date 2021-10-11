@@ -2,7 +2,7 @@ import os, datetime
 
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import create_engine, insert, select, desc, func, and_
+from sqlalchemy import create_engine, insert, select, update, desc, func, and_
 from sqlalchemy.schema import Table
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.declarative import declarative_base
@@ -10,7 +10,6 @@ from sqlalchemy.ext.declarative import declarative_base
 from config import SQLALCHEMY_DATABASE_URI
 
 # get engine for postgres
-#engine = create_engine("postgresql://test_usr:test_pswd@pg_image:5432/global_temperatures")
 engine = create_engine(SQLALCHEMY_DATABASE_URI)
 
 # get the base class
@@ -27,6 +26,7 @@ class GlobalCityTemperatures(Base):
     Defines the model for the table containing global city
     temperatures.
     """
+    # init the model table based on the existing table in postgres.
     postgres_table = Table('global_land_temperatures_by_city', Base.metadata,
                             autoload=True, autoload_with=engine)
     __table__ = postgres_table
@@ -38,20 +38,102 @@ class GlobalCityTemperatures(Base):
     latitude = postgres_table.c.latitude
     longitude = postgres_table.c.longitude
 
-    def add_new_entry(self, dt, avg_temperature, avg_temperature_uncertainty,
+    def add_new_entry(self, dt, avg_temperature, avg_temp_uncert,
                             city, country, latitude, longitude):
-        # create new entry in table
-        stmt = insert(self.postgres_table).values(dt=dt,
-                                            avg_temperature=avg_temperature,
-                                            avg_temperature_uncertainty=avg_temperature_uncertainty,
-                                            city=city,
-                                            country=country,
-                                            latitude=latitude, longitude=longitude)
+        """
+        Creates a new record in the table `global_land_temperatures_by_city` using
+        the inputs provided.
 
-        # write new entry into table and commit result.
-        with Session(engine) as session:
-            result = session.execute(stmt)
-            session.commit()
+        Parameters:
+            dt : datetime.date
+                - The date for the new record.
+            avg_temperature : float/int
+                - The value of average temperature.
+            avg_temp_uncert : float/int
+                - The uncertainty value for the average temperature.
+            city : string
+                - The city name for the new record.
+            country : string
+                - Name of the country from where the record originates.
+            latitude : string
+                - Latitude of the new temperature observation, e.g., `53.25N`
+                format: `xx.xxA` where x := {1, 2, ..., 9, 0} and A := {N, S}
+            longitude: string
+                - Longitude of the new temperature observation, e.g., `13E`
+                format: `xx.xxA` where x := {1, 2, ..., 9, 0} and A := {E, W}
+
+        Returns:
+            results : dict
+                - If DB query successful then a success message else the error message.
+        """
+        try:
+            # create new entry in table
+            stmt = insert(self.postgres_table).values(dt=dt,
+                                                avg_temperature=avg_temperature,
+                                                avg_temperature_uncertainty=avg_temp_uncert,
+                                                city=city,
+                                                country=country,
+                                                latitude=latitude, longitude=longitude)
+
+            # write new entry into table and commit result.
+            with Session(engine) as session:
+                result = session.execute(stmt)
+                session.commit()
+
+            # return success message.
+            return {'success':
+                    """New record successfully created for record:
+                        date: {d}, city: {ci}, Temperature: {t}
+                        """.format(d=dt, ci=city, t=avg_temperature)}
+        except Exception as err:
+            return {'error': 
+                        """Could not create new record for dt: {d} and city: {ci}.
+                            Error message: {e}
+                        """.format(d=dt, ci=city, e=err)}
+
+    def update_record(self, dt, city, new_avg_temp, new_temp_uncert=None):
+        """
+        Update an existing row using the given `dt` and `city` values. The
+        update target is `avg_temperature` and/or `avg_temperature_uncertainty`.
+
+        Parameters:
+            dt : datetime.date
+                - The date for the record to be updated.
+            city : string
+                - The city name for which the records will be updated for date=dt.
+            new_avg_temp : float/int
+                - The new value of average temperature. The `avg_temperature` column
+                in the DB will be updated for above `city` and `dt`
+            new_temp_uncert : float/int
+                - The new uncertainty value for the new average temperature - optional.
+
+        Returns:
+            results : dict
+                - If DB query successful then a success message else the error message.
+        """
+        try:
+            stmt = update(self.postgres_table
+                            ).where(and_(self.postgres_table.c.dt == dt,
+                                        self.postgres_table.c.city == city)
+                                    ).values(
+                                                {
+                                                    "avg_temperature": new_avg_temp,
+                                                    "avg_temperature_uncertainty": new_temp_uncert
+                                                } )
+            # update entry into table and commit result.
+            with Session(engine) as session:
+                result = session.execute(stmt)
+                session.commit()
+
+            # return success message.
+            return {'success':
+                        """Updated avg. Temp. to {t} record for date: {d} and city: {ci}
+                        """.format(t=new_avg_temp, d=dt, ci=city)}
+        except Exception as err:
+            return {'error':
+                        """Could not update record for dt: {d}, city: {c}.
+                            Error message: {e}
+                        """.format(d=dt, c=city, e=err)}
 
     def get_hottest_top_N_cities_in_range(self, dt_start=datetime.date(2000, 1, 1),
                                                 dt_end=datetime.date(2021, 10, 10),
@@ -75,39 +157,39 @@ class GlobalCityTemperatures(Base):
         """
         results = None
 
-        # check input parameters validity
-        if top_n > 100 or top_n < 0:
-            top_n = 100
-        if dt_start > dt_end:
-            dt_temp = dt_start
-            dt_start = dt_end
-            dt_end = dt_temp
-
-        # open session for ORM objects.
-        with Session(engine) as session:
-            # create subquery which ranks all cities based on their highest avg.
-            # temperature in a given time range. The ranks are in the column
-            # `city_rnk` and are calculated per city (partitioned by city). For
-            # a given city the highest rank is for the most recent row with the
-            # highest temperature.
-            subquery = session.query(self.postgres_table,
+        try:
+            # open session for ORM objects.
+            with Session(engine) as session:
+                # create subquery which ranks all cities based on their highest avg.
+                # temperature in a given time range. The ranks are in the column
+                # `city_rnk` and are calculated per city (partitioned by city). For
+                # a given city the highest rank is for the most recent row with the
+                # highest temperature.
+                subquery = session.query(self.postgres_table,
                                         func.rank().over(
                                             order_by=[
-                                                        self.postgres_table.c.avg_temperature.desc(),
-                                                        self.postgres_table.c.dt.desc()
-                                                        ],
+                                                    self.postgres_table.c.avg_temperature.desc(),
+                                                    self.postgres_table.c.dt.desc()
+                                                    ],
                                             partition_by=self.postgres_table.c.city
                                             ).label('city_rnk')
                                         ).filter(and_(self.postgres_table.c.dt > dt_start,
-                                                    self.postgres_table.c.dt < dt_end)
-                                            ).subquery()
-            # from the ranked entries per city above, get the top N cities
-            # with the highest temperatures.
-            query = session.query(subquery).filter(subquery.c.city_rnk == 1
-                                                    ).order_by(
-                                                            subquery.c.avg_temperature.desc()
-                                                            ).limit(top_n)
-            results = [dict(r) for r in session.execute(query)]
+                                                    self.postgres_table.c.dt < dt_end,
+                                                    self.postgres_table.c.avg_temperature != None)
+                                                ).subquery()
 
-        return results
+                # from the ranked entries per city above, get the top N cities
+                # with the highest temperatures.
+                query = session.query(subquery).filter(subquery.c.city_rnk == 1
+                                                        ).order_by(
+                                                                subquery.c.avg_temperature.desc()
+                                                                ).limit(top_n)
+                results = [dict(r) for r in session.execute(query)]
+
+            return results
+        except Exception as err:
+            return {'error':
+                        """Could not query DB table for top {n} cities in time period {s} to {f}.
+                            Error message: {e}
+                        """.format(n=top_n, s=dt_start, f=dt_end, e=err)}
 
