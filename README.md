@@ -60,6 +60,43 @@ docker-compose build
 docker-compose run python_web_app
 ```
 
+**NOTE:** The first build will take a few minutes (5 to 6 minutes) for all services to start, example, setting up PostgresDB and loading data to it. The below is a sample output of a successful build and launch of the web app:
+
+```bash
+[+] Running 9/9
+ ⠿ pg_image Pulled                                                                                                                                                                                    10.1s
+[+] Running 2/2
+ ⠿ Volume "city_temperatures_service_pg_db_data"   Created                                                                                                                                             0.0s
+ ⠿ Container city_temperatures_service-pg_image-1  Created                                                                                                                                             0.1s
+[+] Running 1/1
+ ⠿ Container city_temperatures_service-pg_image-1  Started                                                                                                                                             0.6s
+
+Postgres is starting, will take 4 to 5 minutes . . .
+
+psql: could not connect to server: Connection refused
+	Is the server running on host "pg_image" (192.168.128.2) and accepting
+	TCP/IP connections on port 5432?
+
+Postgres not yet accepting connections, retrying . . .
+Connection to PostgresDB success. Proceeding with launching app . . .
+
+ * Serving Flask app 'app' (lazy loading)
+ * Environment: production
+   WARNING: This is a development server. Do not use it in a production deployment.
+   Use a production WSGI server instead.
+ * Debug mode: on
+ * Running on all addresses.
+   WARNING: This is a development server. Do not use it in a production deployment.
+ * Running on http://192.168.128.3:5000/ (Press CTRL+C to quit)
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 148-843-666
+192.168.128.3 - - [11/Oct/2021 21:29:13] "GET /topNcities/?dtstart=1999-12-31&dtend=2021-10-11&topn=1 HTTP/1.1" 200 -
+192.168.128.3 - - [11/Oct/2021 21:29:34] "POST /new HTTP/1.1" 200 -
+192.168.128.3 - - [11/Oct/2021 21:29:55] "PUT /update HTTP/1.1" 200 -
+
+```
+
 ## Examples:
 
 To run the below examples, please replace `host` value with the corresponding values when it runs on your machine. The host value is shown once the app starts, for example: `* Running on http://192.168.96.3:5000/ (Press CTRL+C to quit)` here, `host=192.168.96.3`.
